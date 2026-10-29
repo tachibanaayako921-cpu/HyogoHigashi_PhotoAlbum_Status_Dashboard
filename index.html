@@ -54,6 +54,8 @@
     .lock-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
     /* ロック中はセレクト無効 */
     .select-locked { pointer-events: none; opacity: 0.5; }
+    /* ホバーで全文を見せるため pointer-events は残す */
+    .comment-locked { background-color: #f9fafb; color: #6b7280; cursor: default; }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -330,7 +332,7 @@
       document.getElementById('unlock-status').classList.remove('hidden');
       // セレクトボックスを有効化
       document.querySelectorAll('.status-select').forEach(el => el.classList.remove('select-locked'));
-      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = false; el.classList.remove('select-locked'); });
+      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = false; el.classList.remove('comment-locked'); });
       showToast('🔓', 'ロックを解除しました。編集が可能です');
     }
 
@@ -344,7 +346,7 @@
       document.getElementById('unlock-status').classList.add('hidden');
       // セレクトボックスを無効化
       document.querySelectorAll('.status-select').forEach(el => el.classList.add('select-locked'));
-      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = true; el.classList.add('select-locked'); });
+      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = true; el.classList.add('comment-locked'); });
       showToast('🔒', 'ロックしました');
     }
 
@@ -557,9 +559,10 @@
             ${isUnlocked ? '−' : '🔒'}
           </td>
           <td class="px-4 py-3">
-            <input type="text" class="comment-input w-full min-w-[200px] border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 ${lockedClass}"
+            <input type="text" class="comment-input w-full min-w-[200px] border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 ${isUnlocked ? '' : 'comment-locked'}"
                    id="comment-${item.rowIndex}" placeholder="コメントを入力"
-                   value="${escapeHtml(item.comment)}" ${isUnlocked ? '' : 'readonly'}
+                   value="${escapeHtml(item.comment)}" title="${escapeHtml(item.comment)}" ${isUnlocked ? '' : 'readonly'}
+                   oninput="this.title = this.value"
                    onblur="handleCommentChange(${item.rowIndex}, this)">
           </td>`;
         tbody.appendChild(tr);
