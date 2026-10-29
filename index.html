@@ -264,6 +264,7 @@
               <th class="px-4 py-3 text-center">現在のステータス</th>
               <th class="px-4 py-3 text-center">変更</th>
               <th class="px-4 py-3 text-center">保存状態</th>
+              <th class="px-4 py-3 text-left">コメント</th>
             </tr>
           </thead>
           <tbody id="status-table" class="divide-y divide-gray-100"></tbody>
@@ -329,6 +330,7 @@
       document.getElementById('unlock-status').classList.remove('hidden');
       // セレクトボックスを有効化
       document.querySelectorAll('.status-select').forEach(el => el.classList.remove('select-locked'));
+      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = false; el.classList.remove('select-locked'); });
       showToast('🔓', 'ロックを解除しました。編集が可能です');
     }
 
@@ -342,6 +344,7 @@
       document.getElementById('unlock-status').classList.add('hidden');
       // セレクトボックスを無効化
       document.querySelectorAll('.status-select').forEach(el => el.classList.add('select-locked'));
+      document.querySelectorAll('.comment-input').forEach(el => { el.readOnly = true; el.classList.add('select-locked'); });
       showToast('🔒', 'ロックしました');
     }
 
@@ -524,7 +527,7 @@
       tbody.innerHTML = '';
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">該当するデータがありません</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">該当するデータがありません</td></tr>';
         return;
       }
 
@@ -552,6 +555,12 @@
           </td>
           <td class="px-4 py-3 text-center text-xs text-gray-400" id="save-state-${item.rowIndex}">
             ${isUnlocked ? '−' : '🔒'}
+          </td>
+          <td class="px-4 py-3">
+            <input type="text" class="comment-input w-full min-w-[200px] border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 ${lockedClass}"
+                   id="comment-${item.rowIndex}" placeholder="コメントを入力"
+                   value="${escapeHtml(item.comment)}" ${isUnlocked ? '' : 'readonly'}
+                   onblur="handleCommentChange(${item.rowIndex}, this)">
           </td>`;
         tbody.appendChild(tr);
       });
@@ -601,6 +610,47 @@
         showToast('❌', '保存失敗: ' + err.message, true);
       } finally {
         selectEl.disabled = false;
+      }
+    }
+
+    // ========== コメント変更 ==========
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    async function handleCommentChange(rowIndex, inputEl) {
+      if (!isUnlocked) return;
+
+      const target = allData.items.find(i => i.rowIndex === rowIndex);
+      const newComment = inputEl.value;
+      if (target && (target.comment ?? '') === newComment) return;
+
+      const saveState = document.getElementById(`save-state-${rowIndex}`);
+      saveState.textContent = '保存中...';
+      saveState.className   = 'text-xs text-amber-500';
+      inputEl.readOnly      = true;
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'updateComment', rowIndex, comment: newComment })
+        });
+        const result = await res.json();
+        if (result.error) throw new Error(result.error);
+
+        if (target) target.comment = newComment;
+        saveState.textContent = '✅ 保存済み';
+        saveState.className   = 'text-xs text-green-600 font-semibold';
+        showToast('✅', 'コメントを保存しました');
+      } catch (err) {
+        saveState.textContent = '❌ 失敗';
+        saveState.className   = 'text-xs text-red-600 font-semibold';
+        showToast('❌', 'コメント保存失敗: ' + err.message, true);
+      } finally {
+        inputEl.readOnly = !isUnlocked;
       }
     }
 
